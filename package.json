@@ -1,7 +1,7 @@
 {
   "scripts": {
     "_dev": "nodemon index.js",
-    "dev": "NODE_ENV=development nodemon --ext js,json,ts --ignore ./tmp --exec 'babel-node ./index -x .js,.json,.ts'"
+    "dev": " NODE_ENV='development' nodemon --ext js,json,ts --ignore ./tmp --exec 'babel-node ./index -x .js,.json,.ts '"
   },
   "dependencies": {
     "cors": "^2.8.5",

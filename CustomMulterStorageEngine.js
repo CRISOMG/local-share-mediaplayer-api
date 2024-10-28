@@ -44,14 +44,16 @@ class FFMPEGDiskStorageHandler {
         outStream.on("error", cb);
         outStream.on("finish", function () {
           let [fname, ext] = multer_filename.split(".");
-          let ffmpeg_filename = [fname, "ffmpeg", ext].join(".");
+          // let ffmpeg_filename = [fname, "ffmpeg", ext].join(".");
+          let ffmpeg_filename = ['video', "ffmpeg", ext].join(".");
           let ffmpeg_path_file = join(destination, ffmpeg_filename);
           ffmpeg(multer_path_file)
             .inputFormat("mp4")
             .outputOptions("-c copy")
             .outputOptions(
               "-movflags",
-              "frag_keyframe+empty_moov+default_base_moof"
+              // 'frag_keyframe+empty_moov+default_base_moof'
+              "faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof"
             )
             .output(ffmpeg_path_file, { end: true })
             .on("end", () => {
