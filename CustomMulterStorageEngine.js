@@ -51,10 +51,13 @@ class FFMPEGDiskStorageHandler {
             .inputFormat("mp4")
             .outputOptions("-c copy")
             .outputOptions(
-              "-movflags",
-              // 'frag_keyframe+empty_moov+default_base_moof'
-              "faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof"
-            )
+              '-movflags','faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof',
+              // '-reset_timestamps','1',
+              // '-segment_time','10',
+              // '-frag_duration','1000000',
+              // '-f','segment',
+              
+          )
             .output(ffmpeg_path_file, { end: true })
             .on("end", () => {
               console.log("Corte de video completado.");

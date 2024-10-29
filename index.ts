@@ -92,9 +92,9 @@ app.get("/v1/video/:filename", async (req, res, next) => {
     const truncated_audio_duration = parseFloat((audio?.duration as any - truncated_duration).toString().slice(0, 5)) // 0.0519999999999996
     const r_duration = parseFloat((truncated_video_duration + truncated_audio_duration + truncated_duration).toFixed(3))
 
-    const video_duration = f_duration
-    const video_bit_rate = metadata.format.bit_rate
-    const video_file_size = metadata.format.size
+    const video_duration = metadata.format.duration || 0
+    const video_bit_rate = metadata.format.bit_rate || 0
+    const video_file_size = metadata.format.size || 0
 
     // Calculate the maximum duration between video and audio streams
     // const totalDuration = Math.max(video_duration, audio_duration, f_duration);
@@ -105,13 +105,14 @@ app.get("/v1/video/:filename", async (req, res, next) => {
     const range = req.headers.range;
     try {
       if (range) {
-        let [start, end] = range
-          .replace(/bytes=/, "")
-          .split("-")
-          .map((n) => parseInt(n || "0", 10));
-        end = end || metadata_fileSize;
-        if (end > metadata_fileSize) {
-          end = metadata_fileSize;
+        let [rangeType, interval] = range.split('=')
+        let [start, end] = interval.split("-").map((n) => parseFloat(n || "0"));
+
+
+        let maxValueEnd = rangeType == 'bytes' ? metadata_fileSize : video_duration;
+        end = end || maxValueEnd;
+        if (end > maxValueEnd) {
+          end = maxValueEnd;
         }
         if (start > end) {
           start -= start - end;
@@ -121,22 +122,48 @@ app.get("/v1/video/:filename", async (req, res, next) => {
         // const ChunkDuration = (chunkSize * 8) / VideoBitRate;
 
         const VideoBitRate = parseFloat(metadata?.format?.bit_rate as unknown as string) || 0;
-        const ChunkDuration = VideoBitRate ? (chunkSize * 8) / VideoBitRate : 0;
+        const ChunkDuration = 0;
 
-        const file = fs.createReadStream(path, { start, end: Infinity });
+        // const file = fs.createReadStream(path, { start, end });
         const headers = {
-          "Content-Range": `bytes ${start}-${end}/${metadata_fileSize}`,
-          "Accept-Ranges": "bytes",
+          "Content-Range": `${rangeType}=${start}-${end}/${maxValueEnd}`,
+          "Accept-Ranges": rangeType,
           "Content-Type": "video/mp4",
+          'Content-Disposition': 'inline',
+          // 'Content-Length': 0,
           "Video-Size": metadata_fileSize,
           "Video-Duration": video_duration,
           "Video-Bit-Rate": video_bit_rate,
           "Video-Chunk-Duration": ChunkDuration,
         };
 
-        process.stdout.write(`\rchunkSize:${formatBytes(chunkSize)} start:${formatBytes(start)} end:${formatBytes(end)}`)
+        // process.stdout.write(`\rchunkSize:${formatBytes(chunkSize)} start:${formatBytes(start)} end:${formatBytes(end)}`)
+        process.stdout.write(`\rchunkSize:${(chunkSize)} start:${(start)} end:${(end)}`)
         res.writeHead(206, headers);
-        file.pipe(res);
+        if (rangeType == 'bytes') {
+          const file = fs.createReadStream(path, { start, end }).pipe(res, { end: true })
+        }
+
+        if (rangeType == 'seconds') {
+          ffmpeg(path)
+            .inputOptions('-ss', start as any) // Set start time for input (to ensure frame accuracy)
+            .inputOptions('-to', end as any)    // Set the end time for output
+            .outputFormat('mp4')          // Ensure output is MP4
+            .videoCodec('copy')           // Copy video codec (no re-encoding)
+            .audioCodec('copy')
+            .outputOptions('-movflags', 'faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof')
+            // .outputOptions(
+            //   '-frag_duration', '1000000', // Duration in microseconds
+            //   '-reset_timestamps', '1'
+            // )
+            .on('error', (err, stdout, stderr) => {
+              console.error('An error occurred:', err.message);
+              console.error('FFmpeg stdout:', stdout);
+              console.error('FFmpeg stderr:', stderr);
+            })
+            .pipe(res, { end: true });
+        }
+
       } else {
         const headers = {
           "Content-Length": metadata_fileSize,
