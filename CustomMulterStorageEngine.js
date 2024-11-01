@@ -44,28 +44,51 @@ class FFMPEGDiskStorageHandler {
         outStream.on("error", cb);
         outStream.on("finish", function () {
           let [fname, ext] = multer_filename.split(".");
-          // let ffmpeg_filename = [fname, "ffmpeg", ext].join(".");
-          let ffmpeg_filename = ['video', "ffmpeg", ext].join(".");
+          let ffmpeg_filename = ['video' || fname, "ffmpeg", ext].join(".");
           let ffmpeg_path_file = join(destination, ffmpeg_filename);
           ffmpeg(multer_path_file)
             .inputFormat("mp4")
             .outputOptions("-c copy")
-            .outputOptions(
-              '-movflags','faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof',
-              // '-reset_timestamps','1',
-              // '-segment_time','10',
-              // '-frag_duration','1000000',
-              // '-f','segment',
+            // .outputOptions("-vsync cfr")
+            // .outputOptions('-avoid_negative_ts make_zero')
+            // .outputOptions('-c:v libx264')
+            // .outputOptions('-preset fast')
+            // .outputOptions('-profile:v main')
+            // .outputOptions('-g 48')
+            // .outputOptions('-keyint_min 48')
+            // .outputOptions('-c:a aac')
+            // .outputOptions('-b:a 128k')
+            // .outputOptions('-movflags faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof')
+            .outputOptions('-movflags +faststart+frag_keyframe+separate_moof+omit_tfhd_offset')
+            // .outputOptions('-frag_duration 1000000')
+            // .outputOptions('-segment_time 2')
+            // .outputOptions(  '-reset_timestamps 1')
+
+            // .outputOptions('-video_track_timescale 90000')
+
+            // .outputOptions('-min_frag_duration 1000000')
+
+            // .outputOptions('-movflags faststart+frag_keyframe+separate_moof')
+            // .outputOptions('-movflags faststart+frag_keyframe+separate_moof')
+            // .outputOptions(  '-frag_duration 1000000')
+            // .outputOptions(  '-reset_timestamps 1')
+            // .outputOptions(  '-segment_time 1')
+            // .outputOptions( '-movflags frag_keyframe')
+            // .outputOptions( '-movflags +faststart+frag_keyframe')
+          //   .outputOptions(
+          //     // '-movflags','faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof',
+          // //     // '-reset_timestamps','1',
+          //     //  '-avoid_negative_ts', 'make_zero'
+          // //     // '-movflags','faststart+frag_keyframe+default_base_moof+separate_moof',
+          // //     // '-segment_time','10',
+          // //     // '-frag_duration','1000000',
+          // //     // '-f','segment',
               
-          )
+          // )
             .output(ffmpeg_path_file, { end: true })
             .on("end", () => {
-              console.log("Corte de video completado.");
               unlinkSync(multer_path_file);
-
               let { size } = statSync(ffmpeg_path_file);
-              // 3076000290
-              // 3076362168
               cb(null, {
                 destination: destination,
                 filename: ffmpeg_filename,

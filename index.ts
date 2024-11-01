@@ -76,29 +76,24 @@ app.post("/upload", upload_v2, (req, res, next) => {
 
 app.get("/v1/video/:filename", async (req, res, next) => {
   const { filename } = req.params;
-  const path = `uploads/${filename}`;
 
-  ffmpeg.ffprobe(path, async (err, metadata) => {
+  // video.ffmpeg.mp4
+  const file_path = `/home/cris/work/onegroup/onegroup-api/uploads/${filename}`;
+
+  ffmpeg.ffprobe(file_path, async (err, metadata) => {
     if (err) {
       console.error(err);
       return res.status(404).send("Video not found");
     }
-    let f_duration = metadata.format.duration || 0
+    let f_duration = metadata.format.duration
     let [video, audio] = metadata.streams
-    // 8.363667
-    // Retrieve the duration of each stream
-    const truncated_duration = Math.floor(f_duration * 10) / 10
-    const truncated_video_duration = parseFloat((video?.duration as any - truncated_duration).toString().slice(0, 5)) // 0.03166699999999878
-    const truncated_audio_duration = parseFloat((audio?.duration as any - truncated_duration).toString().slice(0, 5)) // 0.0519999999999996
-    const r_duration = parseFloat((truncated_video_duration + truncated_audio_duration + truncated_duration).toFixed(3))
-
     const video_duration = metadata.format.duration || 0
-    const video_bit_rate = metadata.format.bit_rate || 0
-    const video_file_size = metadata.format.size || 0
+    const video_bit_rate = metadata.format.bit_rate
+    const video_file_size = metadata.format.size
 
     // Calculate the maximum duration between video and audio streams
     // const totalDuration = Math.max(video_duration, audio_duration, f_duration);
-    let filesize = fs.statSync(path);
+    let filesize = fs.statSync(file_path);
     const metadata_fileSize: number = filesize.size ?? 0;
     // console.log({filesize,metadata_fileSize})
     // console.log({metadata})
@@ -109,7 +104,8 @@ app.get("/v1/video/:filename", async (req, res, next) => {
         let [start, end] = interval.split("-").map((n) => parseFloat(n || "0"));
 
 
-        let maxValueEnd = rangeType == 'bytes' ? metadata_fileSize : video_duration;
+        let isRangeTypeBytes = rangeType == 'bytes';
+        let maxValueEnd = isRangeTypeBytes ? metadata_fileSize : video_duration;
         end = end || maxValueEnd;
         if (end > maxValueEnd) {
           end = maxValueEnd;
@@ -117,20 +113,21 @@ app.get("/v1/video/:filename", async (req, res, next) => {
         if (start > end) {
           start -= start - end;
         }
-        const chunkSize = end - start;
-        // let VideoBitRate = metadata?.format?.bit_rate ?? 0;
-        // const ChunkDuration = (chunkSize * 8) / VideoBitRate;
-
+        let chunkSize = end - start;
         const VideoBitRate = parseFloat(metadata?.format?.bit_rate as unknown as string) || 0;
-        const ChunkDuration = 0;
+
+        let ContentLength = isRangeTypeBytes ? chunkSize : chunkSize * (VideoBitRate / 8)
+        const ChunkDuration = isRangeTypeBytes ? (chunkSize * 8) / VideoBitRate : chunkSize;
+
+        // const ChunkDuration = 0;
 
         // const file = fs.createReadStream(path, { start, end });
-        const headers = {
+        let headers = {
           "Content-Range": `${rangeType}=${start}-${end}/${maxValueEnd}`,
           "Accept-Ranges": rangeType,
           "Content-Type": "video/mp4",
-          'Content-Disposition': 'inline',
-          // 'Content-Length': 0,
+          // 'Content-Disposition': 'inline',
+          // 'Content-Length': ContentLength,
           "Video-Size": metadata_fileSize,
           "Video-Duration": video_duration,
           "Video-Bit-Rate": video_bit_rate,
@@ -138,46 +135,69 @@ app.get("/v1/video/:filename", async (req, res, next) => {
         };
 
         // process.stdout.write(`\rchunkSize:${formatBytes(chunkSize)} start:${formatBytes(start)} end:${formatBytes(end)}`)
-        process.stdout.write(`\rchunkSize:${(chunkSize)} start:${(start)} end:${(end)}`)
-        res.writeHead(206, headers);
+        // process.stdout.write(`\rchunkSize:${(chunkSize)} start:${(start)} end:${(end)}`)
+
+        Object.entries(headers).forEach(([key, value]) => res.setHeader(key, `${value}`));
+
+        let stream: ffmpeg.FfmpegCommand | fs.ReadStream;
         if (rangeType == 'bytes') {
-          const file = fs.createReadStream(path, { start, end }).pipe(res, { end: true })
+          stream = fs.createReadStream(file_path, { start, end })
+          stream.pipe(res)
+          // res.sendFile(file_path, (err) => {
+          //   if (err) {
+          //     console.log(err.message)
+          //     res.status(400).end(err.message)
+          //   }
+          // })
         }
 
         if (rangeType == 'seconds') {
-          ffmpeg(path)
-            .inputOptions('-ss', start as any) // Set start time for input (to ensure frame accuracy)
-            .inputOptions('-to', end as any)    // Set the end time for output
-            .outputFormat('mp4')          // Ensure output is MP4
-            .videoCodec('copy')           // Copy video codec (no re-encoding)
+          stream = ffmpeg(file_path)
+            // .inputOptions('-ss', start as any, '-to', end as any)
+            .inputOptions('-copyts')
+            .outputFormat('mp4')
+            .videoCodec('copy')
             .audioCodec('copy')
-            .outputOptions('-movflags', 'faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof')
+            // .outputOptions("-vsync ")
+            // .outputOptions('-avoid_negative_ts make_zero')
+            .outputOptions(
+              '-movflags +faststart+frag_keyframe+separate_moof+omit_tfhd_offset',
+            )
+            // .outputOptions('-video_track_timescale 90000')
+            // .outputOptions('-frag_duration 1000000')
+            // .outputOptions('-segment_time 2')
+            // .outputOptions('-min_frag_duration 2000000')
             // .outputOptions(
-            //   '-frag_duration', '1000000', // Duration in microseconds
-            //   '-reset_timestamps', '1'
+            //   '-reset_timestamps', `${1}`,
             // )
+
             .on('error', (err, stdout, stderr) => {
               console.error('An error occurred:', err.message);
               console.error('FFmpeg stdout:', stdout);
               console.error('FFmpeg stderr:', stderr);
             })
-            .pipe(res, { end: true });
-        }
 
+          stream.pipe(res)
+        }
       } else {
         const headers = {
-          "Content-Length": metadata_fileSize,
+          "Accept-Ranges": 'bytes',
+          // "Content-Length": metadata_fileSize,
+          // 'Content-Disposition': 'inline',
           "Content-Type": "video/mp4",
-          "Video-Duration": video_duration,
-          "Video-Bit-Rate": video_bit_rate,
-          "Video-": video_bit_rate,
+          // 'Connection': 'close'
+          // "Video-Duration": video_duration,
+          // "Video-Bit-Rate": video_bit_rate,
         };
-
         res.writeHead(200, headers);
-        fs.createReadStream(path).pipe(res);
+        res.end(null)
+        // fs.createReadStream(path).pipe(res);
       }
     } catch (error) {
+      console.log(error.message)
       next(error);
+    } finally {
+      // todo
     }
   });
 });
