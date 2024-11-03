@@ -123,7 +123,7 @@ app.get("/v1/video/:filename", async (req, res, next) => {
 
         // const file = fs.createReadStream(path, { start, end });
         let headers = {
-          "Content-Range": `${rangeType}=${start}-${end}/${maxValueEnd}`,
+          "Content-Range": `${rangeType} ${start}-${end}/${maxValueEnd}`,
           "Accept-Ranges": rangeType,
           "Content-Type": "video/mp4",
           // 'Content-Disposition': 'inline',
@@ -153,15 +153,13 @@ app.get("/v1/video/:filename", async (req, res, next) => {
 
         if (rangeType == 'seconds') {
           stream = ffmpeg(file_path)
-            // .inputOptions('-ss', start as any, '-to', end as any)
+            .inputOptions('-ss', start as any, '-to', end as any)
             .inputOptions('-copyts')
             .outputFormat('mp4')
             .videoCodec('copy')
             .audioCodec('copy')
-            // .outputOptions("-vsync ")
-            // .outputOptions('-avoid_negative_ts make_zero')
             .outputOptions(
-              '-movflags +faststart+frag_keyframe+separate_moof+omit_tfhd_offset',
+              '-movflags +faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof+omit_tfhd_offset',
             )
             // .outputOptions('-video_track_timescale 90000')
             // .outputOptions('-frag_duration 1000000')
@@ -183,15 +181,23 @@ app.get("/v1/video/:filename", async (req, res, next) => {
         const headers = {
           "Accept-Ranges": 'bytes',
           // "Content-Length": metadata_fileSize,
-          // 'Content-Disposition': 'inline',
+          'Content-Disposition': 'inline',
           "Content-Type": "video/mp4",
+          "Video-Duration": video_duration,
+
           // 'Connection': 'close'
           // "Video-Duration": video_duration,
           // "Video-Bit-Rate": video_bit_rate,
         };
-        res.writeHead(200, headers);
-        res.end(null)
-        // fs.createReadStream(path).pipe(res);
+        // res.writeHead(200, headers);
+        Object.entries(headers).forEach(([key, value]) => res.setHeader(key, `${value}`));
+        // fs.createReadStream(file_path).pipe(res, { end: true });
+        res.sendFile(file_path, (err) => {
+          if (err) {
+            console.log(err.message)
+            res.status(400).end(err.message)
+          }
+        })
       }
     } catch (error) {
       console.log(error.message)

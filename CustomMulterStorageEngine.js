@@ -48,18 +48,22 @@ class FFMPEGDiskStorageHandler {
           let ffmpeg_path_file = join(destination, ffmpeg_filename);
           ffmpeg(multer_path_file)
             .inputFormat("mp4")
+            // .inputOptions('-fflags +genpts')
+            .outputOptions("-y")
             .outputOptions("-c copy")
             // .outputOptions("-vsync cfr")
+            // .outputOptions('-itsoffset 0.0')
             // .outputOptions('-avoid_negative_ts make_zero')
             // .outputOptions('-c:v libx264')
             // .outputOptions('-preset fast')
             // .outputOptions('-profile:v main')
+            // .outputOptions('-level:v 4.0') 
             // .outputOptions('-g 48')
             // .outputOptions('-keyint_min 48')
             // .outputOptions('-c:a aac')
             // .outputOptions('-b:a 128k')
-            // .outputOptions('-movflags faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof')
-            .outputOptions('-movflags +faststart+frag_keyframe+separate_moof+omit_tfhd_offset')
+            // .outputOptions('-movflags +faststart')
+            .outputOptions('-movflags +faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof+omit_tfhd_offset')
             // .outputOptions('-frag_duration 1000000')
             // .outputOptions('-segment_time 2')
             // .outputOptions(  '-reset_timestamps 1')
@@ -85,7 +89,7 @@ class FFMPEGDiskStorageHandler {
           // //     // '-f','segment',
               
           // )
-            .output(ffmpeg_path_file, { end: true })
+            .output(ffmpeg_path_file)
             .on("end", () => {
               unlinkSync(multer_path_file);
               let { size } = statSync(ffmpeg_path_file);
