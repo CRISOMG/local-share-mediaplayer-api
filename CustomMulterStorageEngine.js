@@ -1,9 +1,10 @@
-import { createWriteStream, unlinkSync, statSync, unlink } from "fs";
+import { createWriteStream, unlinkSync, statSync, unlink, fstat, mkdirSync, writeFile, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import ffmpeg from "fluent-ffmpeg";
-// var mkdirp = require('mkdirp')
+import { mkdir } from "fs/promises";
+// let mkdirp = require('mkdirp')
 
 function getFilename(req, file, cb) {
   randomBytes(16, function (err, raw) {
@@ -18,6 +19,7 @@ function getDestination(req, file, cb) {
 class FFMPEGDiskStorageHandler {
   constructor(opts) {
     this.getFilename = opts.filename || getFilename;
+    // this.getFilename =  getFilename;
 
     if (typeof opts.destination === "string") {
       // mkdirp.sync(opts.destination)
@@ -29,91 +31,75 @@ class FFMPEGDiskStorageHandler {
     }
   }
   _handleFile(req, file, cb) {
-    var that = this;
+    let that = this;
 
     that.getDestination(req, file, function (err, destination) {
       if (err) return cb(err);
 
       that.getFilename(req, file, function (err, multer_filename) {
-        if (err) return cb(err);
+        try {
 
-        var multer_path_file = join(destination, multer_filename);
-        var outStream = createWriteStream(multer_path_file);
+          if (err) return cb(err);
 
-        file.stream.pipe(outStream);
-        outStream.on("error", cb);
-        outStream.on("finish", function () {
-          let [fname, ext] = multer_filename.split(".");
-          let ffmpeg_filename = ['video' || fname, "ffmpeg", ext].join(".");
-          let ffmpeg_path_file = join(destination, ffmpeg_filename);
-          ffmpeg(multer_path_file)
-            .inputFormat("mp4")
-            // .inputOptions('-fflags +genpts')
-            .outputOptions("-y")
-            .outputOptions("-c copy")
-            // .outputOptions("-vsync cfr")
-            // .outputOptions('-itsoffset 0.0')
-            // .outputOptions('-avoid_negative_ts make_zero')
-            // .outputOptions('-c:v libx264')
-            // .outputOptions('-preset fast')
-            // .outputOptions('-profile:v main')
-            // .outputOptions('-level:v 4.0') 
-            // .outputOptions('-g 48')
-            // .outputOptions('-keyint_min 48')
-            // .outputOptions('-c:a aac')
-            // .outputOptions('-b:a 128k')
-            // .outputOptions('-movflags +faststart')
-            .outputOptions('-movflags +faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof+omit_tfhd_offset')
-            // .outputOptions('-frag_duration 1000000')
-            // .outputOptions('-segment_time 2')
-            // .outputOptions(  '-reset_timestamps 1')
+          let original_filename = multer_filename.split('.')[0]
+          let multer_foldername = original_filename || randomBytes(8).toString("hex")
 
-            // .outputOptions('-video_track_timescale 90000')
+          let dash_path_folder = join(destination, multer_foldername, 'dash')
+          mkdirSync(dash_path_folder, { recursive: true })
 
-            // .outputOptions('-min_frag_duration 1000000')
+          let multer_path_file = join(destination, multer_foldername, `original.mp4`);
+          let outStream = createWriteStream(multer_path_file);
 
-            // .outputOptions('-movflags faststart+frag_keyframe+separate_moof')
-            // .outputOptions('-movflags faststart+frag_keyframe+separate_moof')
-            // .outputOptions(  '-frag_duration 1000000')
-            // .outputOptions(  '-reset_timestamps 1')
-            // .outputOptions(  '-segment_time 1')
-            // .outputOptions( '-movflags frag_keyframe')
-            // .outputOptions( '-movflags +faststart+frag_keyframe')
-          //   .outputOptions(
-          //     // '-movflags','faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof',
-          // //     // '-reset_timestamps','1',
-          //     //  '-avoid_negative_ts', 'make_zero'
-          // //     // '-movflags','faststart+frag_keyframe+default_base_moof+separate_moof',
-          // //     // '-segment_time','10',
-          // //     // '-frag_duration','1000000',
-          // //     // '-f','segment',
-              
-          // )
-            .output(ffmpeg_path_file)
-            .on("end", () => {
-              unlinkSync(multer_path_file);
-              let { size } = statSync(ffmpeg_path_file);
-              cb(null, {
-                destination: destination,
-                filename: ffmpeg_filename,
-                path: ffmpeg_path_file,
-                size: size,
-              });
-            })
-            .on("finish", () => {
-              console.log("fklasjdf;akdsljfas;lkdfsa;ldkfjas;lkf");
-            })
-            .on("error", (err) => {
-              cb(err);
-              console.error("Error al cortar el video:", err);
-            })
-            .run();
-        });
+          writeFileSync(join(destination, multer_foldername, `${original_filename}`), '')
+
+          file.stream.pipe(outStream);
+          outStream.on("error", cb);
+          outStream.on("finish", function () {
+            let ffmpeg_filename = ['manifest', 'mpd'].join(".");
+            let ffmpeg_path_file = join(dash_path_folder, ffmpeg_filename);
+            // ffmpeg -i input.mp4 -map 0 -codec copy -f dash -min_seg_duration 5000000 -use_template 1 -use_timeline 1 -init_seg_name init-\$RepresentationID\$.mp4 -media_seg_name chunk-\$RepresentationID\$-\$Number\$.m4s output.mpd
+            ffmpeg(multer_path_file)
+              .outputOptions([
+                '-map 0',
+                '-codec copy',
+                '-f dash',
+                '-min_seg_duration 5000000',
+                '-use_template 1',
+                '-use_timeline 1',
+                '-init_seg_name init-$RepresentationID$.mp4',
+                '-media_seg_name chunk-$RepresentationID$-$Number$.m4s'
+              ])
+              .output(ffmpeg_path_file)
+              .on('start', (commandLine) => {
+                // console.log('FFmpeg command: ', commandLine);
+              })
+              .on('error', (err, stdout, stderr) => {
+                console.error('An error occurred: ' + stderr);
+                cb(stderr)
+              })
+              .on('end', () => {
+                console.log('Processing finished successfully');
+                // unlinkSync(multer_path_file);
+                let { size } = statSync(multer_path_file);
+                cb(null, {
+                  destination: destination,
+                  filename: multer_filename,
+                  path: multer_path_file,
+                  size: size,
+                });
+              })
+              .run();
+
+          });
+
+        } catch (error) {
+          cb(error)
+        }
       });
     });
   }
   _removeFile(req, file, cb) {
-    var path = file.path;
+    let path = file.path;
 
     delete file.destination;
     delete file.filename;

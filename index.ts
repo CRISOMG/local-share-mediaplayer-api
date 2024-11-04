@@ -5,8 +5,14 @@ import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import { Readable } from "stream";
 import { FFMPEGDiskStorage } from "./CustomMulterStorageEngine";
+
+
+import { exec, execSync } from 'child_process';
+import os from 'os';
+import path from 'path';
+
 const app = express();
-const port = 3002;
+const port = 3003;
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -26,6 +32,7 @@ app.use(
     exposedHeaders: "*",
   })
 );
+app.use('/uploads', express.static('uploads'))
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -152,30 +159,53 @@ app.get("/v1/video/:filename", async (req, res, next) => {
         }
 
         if (rangeType == 'seconds') {
-          stream = ffmpeg(file_path)
-            .inputOptions('-ss', start as any, '-to', end as any)
-            .inputOptions('-copyts')
-            .outputFormat('mp4')
-            .videoCodec('copy')
-            .audioCodec('copy')
-            .outputOptions(
-              '-movflags +faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof+omit_tfhd_offset',
-            )
-            // .outputOptions('-video_track_timescale 90000')
-            // .outputOptions('-frag_duration 1000000')
-            // .outputOptions('-segment_time 2')
-            // .outputOptions('-min_frag_duration 2000000')
-            // .outputOptions(
-            //   '-reset_timestamps', `${1}`,
-            // )
 
-            .on('error', (err, stdout, stderr) => {
-              console.error('An error occurred:', err.message);
-              console.error('FFmpeg stdout:', stdout);
-              console.error('FFmpeg stderr:', stderr);
+          // const tempFilePath = path.join(os.tmpdir(), 'output.tmp.mp4');
+          const tempFilePath = path.join(__dirname, 'o.mp4');
+          // const mp4boxCommand = `MP4Box -splitx ${start}:${end} ${file_path} -out ${tempFilePath}`;
+          // fs.unlinkSync(tempFilePath)
+          // const mp4boxCommand = `ffmpeg -ss ${start} -to ${end} -i ${file_path} -y -c copy ${tempFilePath}`;
+          const mp4boxCommand = `ffmpeg -i ${file_path} -ss ${start} -to ${end} -movflags +faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof+omit_tfhd_offset -y -c copy ${tempFilePath}`;
+          exec(mp4boxCommand, (error, stdout, stderr) => {
+            if (stderr) console.error('stderr:', stderr);
+            if (error) {
+              console.error('Error executing:', error.message);
+              return;
+            }
+
+            res.sendFile(tempFilePath, (err) => {
+              if (err) {
+                console.log(err.message)
+                res.status(400).end(err.message)
+              }
             })
 
-          stream.pipe(res)
+            // stream = ffmpeg(tempFilePath)
+            //   .outputFormat('mp4')
+            //   .videoCodec('copy')
+            //   .audioCodec('copy')
+            //   .outputOptions(
+            //     '-movflags +faststart+frag_keyframe+empty_moov+default_base_moof+separate_moof+omit_tfhd_offset',
+            //   )
+            //   .outputOptions('-loglevel error')
+            //   .on('error', (err, stdout, stderr) => {
+            //     console.error('An error occurred:', err.message);
+            //     console.error('FFmpeg stdout:', stdout);
+            //     console.error('FFmpeg stderr:', stderr);
+            //   })
+            // stream.clone().output('/home/cris/work/onegroup/onegroup-api/o.mp4', { end: true }).on('error', (err, stdout, stderr) => {
+            //   console.error('An error occurred:', err.message);
+            //   console.error('FFmpeg stdout:', stdout);
+            //   console.error('FFmpeg stderr:', stderr);
+            // }).on('end', () => {
+            //   console.log('copy to /home/cris/work/onegroup/onegroup-api/o.mp4')
+            // }).run()
+            // stream.pipe(res)
+
+
+          })
+
+
         }
       } else {
         const headers = {
@@ -207,6 +237,57 @@ app.get("/v1/video/:filename", async (req, res, next) => {
     }
   });
 });
+
+app.get("/v1/video-list", async (req, res, next) => {
+  try {
+    let dirs = fs.readdirSync(path.resolve(__dirname, 'uploads'))
+    res.json(dirs).end()
+  } catch (error) {
+    next(error)
+  }
+});
+
+app.delete('/v1/video-list', async (req, res, next) => {
+  try {
+
+    exec(`rm -rf ./uploads/**`, (error, stdout, stderr) => {
+      if (stderr) console.error('stderr:', stderr);
+      if (error) {
+        console.error('Error executing:', error.message);
+        return res.status(500).send(stderr)
+      }
+      res.json({
+        result: 'uploads folder flushed'
+      }).end()
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/v1/find-video-path', async (req, res, next) => {
+
+  try {
+    let { body } = req
+
+    if (!body.filename) {
+      return next('filename is required')
+    }
+
+    exec(`find ./uploads -type f -name "${body?.filename}"`, (error, stdout, stderr) => {
+      if (stderr) console.error('stderr:', stderr);
+      if (error) {
+        console.error('Error executing:', error.message);
+        return;
+      }
+      res.json({
+        result: stdout
+      }).end()
+    })
+  } catch (error) {
+    next(error)
+  }
+})
 
 // Start the server
 app.listen(port, () => {
