@@ -12,6 +12,11 @@
         "@babel/preset-typescript"
     ],
     "plugins": [
-        "inline-dotenv"
+        [
+            "inline-dotenv",
+            {
+                "path": ".env"
+            }
+        ]
     ]
 }

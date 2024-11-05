@@ -4,19 +4,21 @@
     "dev": " NODE_ENV='development' nodemon --ext js,json,ts --ignore ./tmp --exec 'babel-node ./index -x .js,.json,.ts '"
   },
   "dependencies": {
+    "@babel/cli": "^7.23.9",
+    "@babel/core": "^7.24.0",
+    "@babel/node": "^7.23.9",
+    "@babel/preset-env": "^7.24.0",
+    "@babel/preset-typescript": "^7.23.3",
+    "@ngrok/ngrok": "^1.4.1",
+    "babel-plugin-inline-dotenv": "^1.7.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "ffmpeg": "^0.0.4",
     "fluent-ffmpeg": "^2.1.2",
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.1.0",
-    "typescript": "^5.3.3",
-    "babel-plugin-inline-dotenv": "^1.7.0",
-    "@babel/node": "^7.23.9",
-    "@babel/preset-typescript": "^7.23.3",
-    "@babel/cli": "^7.23.9",
-    "@babel/core": "^7.24.0",
-    "@babel/preset-env": "^7.24.0"
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

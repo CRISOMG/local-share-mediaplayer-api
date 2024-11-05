@@ -3,16 +3,17 @@ import multer from "multer";
 import cors from "cors";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
-import { Readable } from "stream";
+import ngrok from "@ngrok/ngrok";
 import { FFMPEGDiskStorage } from "./CustomMulterStorageEngine";
 
 
-import { exec, execSync } from 'child_process';
+import { exec } from 'child_process';
 import os from 'os';
 import path from 'path';
 
 const app = express();
-const port = 3003;
+const port = 3002;
+const host = '0.0.0.0'
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -241,6 +242,7 @@ app.get("/v1/video/:filename", async (req, res, next) => {
 app.get("/v1/video-list", async (req, res, next) => {
   try {
     let dirs = fs.readdirSync(path.resolve(__dirname, 'uploads'))
+    dirs.splice(dirs.indexOf('.gitignore'), 1)
     res.json(dirs).end()
   } catch (error) {
     next(error)
@@ -289,7 +291,24 @@ app.get('/v1/find-video-path', async (req, res, next) => {
   }
 })
 
+app.get('/v1/ngrok', async (req, res, next) => {
+
+  try {
+
+    const listener = await ngrok.forward({ addr: 80, authtoken: process.env.NGROK_AUTHTOKEN });
+
+    const ngrok_url = listener.url()
+    console.log(`Ingress established at: ${ngrok_url}`);
+    res.json({
+      result: ngrok_url
+    }).end()
+  } catch (error) {
+    next(error)
+  }
+})
+
+
 // Start the server
-app.listen(port, () => {
+app.listen(port, host, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

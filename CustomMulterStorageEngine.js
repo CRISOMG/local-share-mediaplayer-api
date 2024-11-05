@@ -50,7 +50,7 @@ class FFMPEGDiskStorageHandler {
           let multer_path_file = join(destination, multer_foldername, `original.mp4`);
           let outStream = createWriteStream(multer_path_file);
 
-          writeFileSync(join(destination, multer_foldername, `${original_filename}`), '')
+          // writeFileSync(join(destination, multer_foldername, `${original_filename}`), '')
 
           file.stream.pipe(outStream);
           outStream.on("error", cb);
@@ -63,7 +63,7 @@ class FFMPEGDiskStorageHandler {
                 '-map 0',
                 '-codec copy',
                 '-f dash',
-                '-min_seg_duration 5000000',
+                // '-min_seg_duration 5000000',
                 '-use_template 1',
                 '-use_timeline 1',
                 '-init_seg_name init-$RepresentationID$.mp4',
