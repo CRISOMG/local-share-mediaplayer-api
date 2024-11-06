@@ -1,9 +1,13 @@
 #!/bin/bash
 
 
-cd dist;
-pm2 delete all;
-NODE_ENV='production';
-pm2 start index.js --name express-api;
-pm2 logs express-api;
+# cd dist;
+# pm2 delete all;
+# pm2 flush;
+# pm2 start ./dist/index.js --name express-api;
+# pm2 start ecosystem.config.cjs --env production
+# pm2 logs express-api;
+
+# this must be executet by CMD ["pm2-runtime", "start", "/api/ecosystem.config.cjs"] in dockerfile  
+pm2 start dist/index.js
 
