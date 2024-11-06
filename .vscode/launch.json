@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to Docker",
+            "port": 9229, // Port for debugging
+            "restart": true,
+            "timeout": 10000,
+            "localRoot": "${workspaceFolder}",
+            "remoteRoot": "/app", // Adjust according to your container's file structure
+            "preLaunchTask": "Run Docker Script"
+        }
+    ]
+}

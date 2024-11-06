@@ -8,7 +8,6 @@ import { FFMPEGDiskStorage } from "./CustomMulterStorageEngine";
 
 
 import { exec } from 'child_process';
-import os from 'os';
 import path from 'path';
 
 const app = express();
@@ -33,35 +32,12 @@ app.use(
     exposedHeaders: "*",
   })
 );
-app.use('/uploads', express.static('uploads'))
+app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')))
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "/tmp/my-uploads");
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix);
-  },
-});
-
-const upload_v1 = multer({
-  storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, "uploads");
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      let composeFilename = file.fieldname + "-" + uniqueSuffix; // implement later
-      cb(null, file.originalname);
-    },
-  }),
-}).single("video");
-
-const upload_v2 = multer({
+const FFMPEGUploadMiddleware = multer({
   storage: FFMPEGDiskStorage({
     destination: function (req, file, cb) {
-      cb(null, "uploads");
+      cb(null, path.resolve(__dirname, 'uploads'));
     },
     filename: function (req, file, cb) {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -72,10 +48,9 @@ const upload_v2 = multer({
 }).single("video");
 
 // ffmpeg -i file.mp4 -c copy -movflags frag_keyframe+empty_moov+default_base_moof output.mp4
-app.post("/upload", upload_v2, (req, res, next) => {
+app.post("/upload", FFMPEGUploadMiddleware, (req, res, next) => {
   try {
     let file = req.file;
-    console.log(req.file);
     res.status(201).json(file);
   } catch (error) {
     next(error);
@@ -242,7 +217,10 @@ app.get("/v1/video/:filename", async (req, res, next) => {
 app.get("/v1/video-list", async (req, res, next) => {
   try {
     let dirs = fs.readdirSync(path.resolve(__dirname, 'uploads'))
-    dirs.splice(dirs.indexOf('.gitignore'), 1)
+    let gitIgnoreIndex = dirs.indexOf('.gitignore')
+    if (gitIgnoreIndex !== -1) {
+      dirs.splice(gitIgnoreIndex, 1)
+    }
     res.json(dirs).end()
   } catch (error) {
     next(error)
@@ -268,7 +246,6 @@ app.delete('/v1/video-list', async (req, res, next) => {
 })
 
 app.get('/v1/find-video-path', async (req, res, next) => {
-
   try {
     let { body } = req
 
@@ -276,7 +253,8 @@ app.get('/v1/find-video-path', async (req, res, next) => {
       return next('filename is required')
     }
 
-    exec(`find ./uploads -type f -name "${body?.filename}"`, (error, stdout, stderr) => {
+
+    exec(`find ${path.resolve(__dirname, 'uploads')} -type f -name "${body?.filename}"`, (error, stdout, stderr) => {
       if (stderr) console.error('stderr:', stderr);
       if (error) {
         console.error('Error executing:', error.message);
@@ -295,9 +273,22 @@ app.get('/v1/ngrok', async (req, res, next) => {
 
   try {
 
-    const listener = await ngrok.forward({ addr: 80, authtoken: process.env.NGROK_AUTHTOKEN });
+    if (req.hostname !== 'localhost') {
+      res.json({
+        result: 'unavailable'
+      }).end()
+    }
 
-    const ngrok_url = listener.url()
+    const listeners = await ngrok.listeners()
+    let listener: ngrok.Listener | null = null
+
+    if (listeners.length) {
+      listener = listeners[0]
+    } else {
+      listener = await ngrok.forward({ addr: `http://nginx`, authtoken: process.env.NGROK_AUTHTOKEN });
+    }
+
+    const ngrok_url = listener?.url()
     console.log(`Ingress established at: ${ngrok_url}`);
     res.json({
       result: ngrok_url
@@ -310,5 +301,5 @@ app.get('/v1/ngrok', async (req, res, next) => {
 
 // Start the server
 app.listen(port, host, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is running on http://${host}:${port}`);
 });

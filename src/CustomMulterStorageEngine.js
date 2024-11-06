@@ -42,7 +42,11 @@ class FFMPEGDiskStorageHandler {
           if (err) return cb(err);
 
           let original_filename = multer_filename.split('.')[0]
-          let multer_foldername = original_filename || randomBytes(8).toString("hex")
+
+          let randomHex = randomBytes(8).toString("hex")
+          const uniqueSuffix = `${original_filename}-${Date.now() + "-" + Math.round(Math.random() * 1e9)}`;
+
+          let multer_foldername = original_filename
 
           let dash_path_folder = join(destination, multer_foldername, 'dash')
           mkdirSync(dash_path_folder, { recursive: true })

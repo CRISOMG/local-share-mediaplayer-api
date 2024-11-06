@@ -1,0 +1,13 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Docker Script",
+            "type": "shell",
+            // "command": "npm run docker", // Or "yarn docker"
+            "command": "yarn docker",
+            "problemMatcher": [],
+            "isBackground": true
+        }
+    ]
+}
