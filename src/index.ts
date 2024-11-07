@@ -285,13 +285,36 @@ app.get('/v1/ngrok', async (req, res, next) => {
     if (listeners.length) {
       listener = listeners[0]
     } else {
-      listener = await ngrok.forward({ addr: `http://nginx`, authtoken: process.env.NGROK_AUTHTOKEN });
+      listener = await ngrok.forward({
+        addr: `http://nginx`,
+        authtoken: process.env.NGROK_AUTHTOKEN,
+        domain: "destined-chipmunk-remotely.ngrok-free.app",
+        force_new_session: true
+      });
     }
 
     const ngrok_url = listener?.url()
     console.log(`Ingress established at: ${ngrok_url}`);
     res.json({
       result: ngrok_url
+    }).end()
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/v1/ngrok', async (req, res, next) => {
+
+  try {
+
+    if (req.hostname !== 'localhost') {
+      res.status(503).json({
+        result: 'unavailable'
+      }).end()
+    }
+    const result = await ngrok.disconnect('https://destined-chipmunk-remotely.ngrok-free.app')
+    res.json({
+      result: 'ngrok url disconnected'
     }).end()
   } catch (error) {
     next(error)

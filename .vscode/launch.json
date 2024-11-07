@@ -9,7 +9,7 @@
             "restart": true,
             "timeout": 10000,
             "localRoot": "${workspaceFolder}",
-            "remoteRoot": "/app", // Adjust according to your container's file structure
+            "remoteRoot": "/api", // Adjust according to your container's file structure
             "preLaunchTask": "Run Docker Script"
         }
     ]

@@ -4,7 +4,8 @@
     "dev": " NODE_ENV='development' DEBUG=express:*  nodemon --ext js,json,ts --ignore ./tmp --exec 'babel-node --inspect=0.0.0.0:9229 ./src/index -x .js,.json,.ts '",
     "build": "rm -rf dist && babel src -x .js,.json,.ts -d dist && mkdir ./dist/uploads",
     "start": "./scripts/start.sh",
-    "docker": "./docker-attach.sh"
+    "docker": "./docker-attach.sh",
+    "docker-dev": "./docker-attach.sh dev"
   },
   "private": true,
   "dependencies": {

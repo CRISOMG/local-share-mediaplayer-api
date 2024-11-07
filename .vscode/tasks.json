@@ -5,7 +5,7 @@
             "label": "Run Docker Script",
             "type": "shell",
             // "command": "npm run docker", // Or "yarn docker"
-            "command": "yarn docker",
+            "command": "yarn docker-dev",
             "problemMatcher": [],
             "isBackground": true
         }
