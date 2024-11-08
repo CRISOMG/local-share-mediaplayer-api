@@ -11,4 +11,4 @@
 # this must be executet by CMD ["pm2-runtime", "start", "/api/ecosystem.config.cjs"] in dockerfile or ("start": "pm2 start ecosystem.config.cjs") in package.json from yarn start 
 
 # pm2 start dist/index.js
-pm2 start ecosystem.config.cjs
+# pm2-runtime start ecosystem.config.cjs

@@ -10,7 +10,7 @@
             "timeout": 10000,
             "localRoot": "${workspaceFolder}",
             "remoteRoot": "/api", // Adjust according to your container's file structure
-            "preLaunchTask": "Run Docker Script"
+            // "preLaunchTask": "Run Docker Script"
         }
     ]
 }
