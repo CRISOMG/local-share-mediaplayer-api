@@ -230,7 +230,8 @@ app.get("/v1/video-list", async (req, res, next) => {
 app.delete('/v1/video-list', async (req, res, next) => {
   try {
 
-    exec(`rm -rf ./uploads/**`, (error, stdout, stderr) => {
+    let upload_path = path.resolve(__dirname, 'uploads')
+    exec(`rm -rf ${upload_path}/**`, (error, stdout, stderr) => {
       if (stderr) console.error('stderr:', stderr);
       if (error) {
         console.error('Error executing:', error.message);
