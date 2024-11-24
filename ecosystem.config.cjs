@@ -3,7 +3,7 @@ module.exports = {
         {
             name: 'express-api',
             port: '3002',
-            script: './scripts/start.sh',
+            script: 'dist/index.js',
             env_production: {
                 NODE_ENV: "production",
                 PORT: 3002,
