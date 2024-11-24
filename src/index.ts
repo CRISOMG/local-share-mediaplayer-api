@@ -274,11 +274,11 @@ app.get('/v1/ngrok', async (req, res, next) => {
 
   try {
 
-    if (req.hostname !== 'localhost') {
-      res.json({
-        result: 'unavailable'
-      }).end()
-    }
+    // if (req.hostname !== 'localhost') {
+    //   res.json({
+    //     result: 'unavailable'
+    //   }).end()
+    // }
 
     const listeners = await ngrok.listeners()
     let listener: ngrok.Listener | null = null
@@ -308,11 +308,11 @@ app.delete('/v1/ngrok', async (req, res, next) => {
 
   try {
 
-    if (req.hostname !== 'localhost') {
-      res.status(503).json({
-        result: 'unavailable'
-      }).end()
-    }
+    // if (req.hostname !== 'localhost') {
+    //   res.status(503).json({
+    //     result: 'unavailable'
+    //   }).end()
+    // }
     const result = await ngrok.disconnect('https://destined-chipmunk-remotely.ngrok-free.app')
     res.json({
       result: 'ngrok url disconnected'
